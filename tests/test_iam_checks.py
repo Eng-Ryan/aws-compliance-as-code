@@ -82,13 +82,13 @@ def test_check_root_access_keys_passes_when_no_keys(aws_session):
 
 
 def test_check_root_access_keys_fails_when_keys_present(aws_session):
-    # Mock get_account_summary to return AccountAccessKeysPresent = 1
-    client = aws_session.client("iam")
-    with patch.object(
-        client,
-        "get_account_summary",
-        return_value={"SummaryMap": {"AccountAccessKeysPresent": 1}},
-    ):
+    # Patch at the module level where the client method is called
+    with patch("boto3.Session.client") as mock_client_method:
+        mock_iam_client = mock_client_method.return_value
+        mock_iam_client.get_account_summary.return_value = {
+            "SummaryMap": {"AccountAccessKeysPresent": 1}
+        }
+
         status, message, evidence = check_root_access_keys(aws_session)
 
     assert status == Status.FAIL
@@ -97,12 +97,12 @@ def test_check_root_access_keys_fails_when_keys_present(aws_session):
 
 
 def test_check_root_mfa_passes_when_enabled(aws_session):
-    client = aws_session.client("iam")
-    with patch.object(
-        client,
-        "get_account_summary",
-        return_value={"SummaryMap": {"AccountMFAEnabled": 1}},
-    ):
+    with patch("boto3.Session.client") as mock_client_method:
+        mock_iam_client = mock_client_method.return_value
+        mock_iam_client.get_account_summary.return_value = {
+            "SummaryMap": {"AccountMFAEnabled": 1}
+        }
+
         status, message, evidence = check_root_mfa(aws_session)
 
     assert status == Status.PASS
@@ -126,11 +126,21 @@ def test_check_iam_unused_credentials_passes_with_no_stale_keys(aws_session):
 
     # Mock get_access_key_last_used to return a recent date (10 days ago)
     recent_date = datetime.now(timezone.utc) - timedelta(days=10)
-    with patch.object(
-        client,
-        "get_access_key_last_used",
-        return_value={"AccessKeyLastUsed": {"LastUsedDate": recent_date}},
-    ):
+
+    # Patch the IAM client's get_access_key_last_used for all clients created
+    with patch("boto3.Session.client") as mock_client_method:
+        mock_iam_client = mock_client_method.return_value
+        # Need to preserve list_users and list_access_keys from moto, only mock last_used
+        mock_iam_client.get_paginator.return_value.paginate.return_value = [
+            {"Users": [{"UserName": "active-user"}]}
+        ]
+        mock_iam_client.list_access_keys.return_value = {
+            "AccessKeyMetadata": [{"AccessKeyId": key_id, "Status": "Active"}]
+        }
+        mock_iam_client.get_access_key_last_used.return_value = {
+            "AccessKeyLastUsed": {"LastUsedDate": recent_date}
+        }
+
         status, message, evidence = check_iam_unused_credentials(aws_session)
 
     assert status == Status.PASS

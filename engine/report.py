@@ -69,3 +69,24 @@ def write_trend_snapshot(
     with open(snapshot_path, "w") as f:
         json.dump(snapshot, f, indent=2)
     return snapshot_path
+
+
+def load_trend_history(output_dir: Path) -> list[dict]:
+    """
+    Load all *_snapshot.json files from output_dir, sorted by generated_at timestamp.
+    """
+    snapshots = []
+    if not output_dir.exists():
+        return snapshots
+
+    for snapshot_file in sorted(output_dir.glob("*_snapshot.json")):
+        try:
+            with open(snapshot_file, "r") as f:
+                data = json.load(f)
+                snapshots.append(data)
+        except Exception:
+            continue
+
+    snapshots.sort(key=lambda s: s.get("generated_at", ""))
+    return snapshots
+

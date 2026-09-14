@@ -18,7 +18,7 @@ import click
 
 from engine.evidence import EvidenceCollector
 from engine.loader import load_controls, resolve_all
-from engine.report import render_html_report, write_trend_snapshot
+from engine.report import load_trend_history, render_html_report, write_trend_snapshot
 from engine.runner import ComplianceRunner
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -180,6 +180,53 @@ def map_control(title, description, checks_dir, model):
     click.echo(f"Confidence: {result.get('confidence', 'unknown')}")
     click.echo(f"Reasoning:  {result.get('reasoning', 'N/A')}")
     click.echo("\n⚠️  REVIEW REQUIRED: AI-suggested mapping needs human verification.")
+
+
+@cli.command()
+@click.option(
+    "--snapshots-dir",
+    default="reports",
+    type=click.Path(path_type=Path),
+    help="Directory containing trend snapshot JSON files.",
+)
+@click.option(
+    "--limit",
+    default=10,
+    help="Number of most recent snapshots to display.",
+)
+def trends(snapshots_dir, limit):
+    """Display compliance score trends over time from saved snapshots."""
+    history = load_trend_history(snapshots_dir)
+
+    if not history:
+        click.echo(f"No trend snapshots found in {snapshots_dir}.")
+        click.echo("Run 'python main.py scan' to generate snapshots.")
+        return
+
+    click.echo(f"\nCompliance Posture History (last {limit} runs):\n")
+    click.echo(f"{'Run ID':<30} {'Date':<20} {'Score':<8} {'Pass':<6} {'Fail':<6} {'Error':<6}")
+    click.echo("=" * 80)
+
+    for snapshot in history[-limit:]:
+        run_id = snapshot.get("run_id", "unknown")[:28]
+        generated = snapshot.get("generated_at", "")[:19].replace("T", " ")
+        score = snapshot.get("compliance_score_pct", 0.0)
+        passed = snapshot.get("passed", 0)
+        failed = snapshot.get("failed", 0)
+        errored = snapshot.get("errored", 0)
+
+        click.echo(f"{run_id:<30} {generated:<20} {score:>6.1f}%  {passed:<6} {failed:<6} {errored:<6}")
+
+    # Summary stats
+    if len(history) >= 2:
+        first = history[0]
+        last = history[-1]
+        delta = last.get("compliance_score_pct", 0) - first.get("compliance_score_pct", 0)
+        direction = "↑" if delta > 0 else "↓" if delta < 0 else "→"
+
+        click.echo("=" * 80)
+        click.echo(f"Total runs: {len(history)}")
+        click.echo(f"Score change: {direction} {abs(delta):.1f}% (first → last)")
 
 
 if __name__ == "__main__":
