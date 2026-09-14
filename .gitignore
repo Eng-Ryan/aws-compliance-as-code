@@ -12,6 +12,11 @@ evidence/*.json
 evidence/*/
 !evidence/.gitkeep
 
+# Test artifacts
+test_evidence/
+test_reports/
+test_integration.py
+
 .env
 .aws/
 *.log

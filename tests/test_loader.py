@@ -10,7 +10,9 @@ from engine.models import ControlDefinition, Severity
 
 
 def test_load_controls_from_file():
-    controls_dir = Path("controls")
+    # Resolve relative to the compliance-engine directory
+    base_dir = Path(__file__).parent.parent
+    controls_dir = base_dir / "controls"
     soc2_path = controls_dir / "soc2_cc.yaml"
 
     controls = load_controls_from_file(soc2_path)
@@ -21,7 +23,7 @@ def test_load_controls_from_file():
 
 
 def test_load_controls_filters_by_framework():
-    controls_dir = Path("controls")
+    controls_dir = Path(__file__).parent.parent / "controls"
 
     # Load only SOC 2 controls
     soc2_controls = load_controls(controls_dir, frameworks=["soc2"])
@@ -52,7 +54,7 @@ def test_resolve_check_function_raises_on_invalid_path():
 
 
 def test_resolve_all():
-    controls_dir = Path("controls")
+    controls_dir = Path(__file__).parent.parent / "controls"
     controls = load_controls(controls_dir, frameworks=["soc2"])
 
     resolved = resolve_all(controls[:3])  # Test first 3 controls

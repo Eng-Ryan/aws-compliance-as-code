@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from engine.models import CheckResult, ControlDefinition, Severity, Status
-from engine.report import render_html_report, write_trend_snapshot
+from engine.report import load_trend_history, render_html_report, write_trend_snapshot
 
 
 def test_render_html_report(tmp_path):
@@ -61,3 +61,35 @@ def test_write_trend_snapshot(tmp_path):
     assert data["total_controls"] == 1
     assert data["failed"] == 1
     assert data["compliance_score_pct"] == 0.0
+
+
+def test_load_trend_history(tmp_path):
+    # Empty directory
+    assert load_trend_history(tmp_path) == []
+
+    # Write two dummy snapshots
+    s1 = tmp_path / "run1_snapshot.json"
+    s1.write_text(json.dumps({
+        "run_id": "run-001",
+        "generated_at": "2026-09-01T12:00:00Z",
+        "compliance_score_pct": 75.0,
+        "passed": 3,
+        "failed": 1,
+        "errored": 0,
+    }))
+
+    s2 = tmp_path / "run2_snapshot.json"
+    s2.write_text(json.dumps({
+        "run_id": "run-002",
+        "generated_at": "2026-09-02T12:00:00Z",
+        "compliance_score_pct": 100.0,
+        "passed": 4,
+        "failed": 0,
+        "errored": 0,
+    }))
+
+    history = load_trend_history(tmp_path)
+    assert len(history) == 2
+    assert history[0]["run_id"] == "run-001"
+    assert history[1]["run_id"] == "run-002"
+
