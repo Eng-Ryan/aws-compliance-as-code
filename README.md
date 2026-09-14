@@ -163,8 +163,8 @@ Answers the GRC workflow challenge: *"How do we quickly onboard new compliance r
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/compliance-engine.git
-cd compliance-engine
+git clone https://github.com/Eng-Ryan/aws-compliance-as-code.git
+cd aws-compliance-as-code
 
 # Create virtual environment
 python3 -m venv venv
@@ -196,35 +196,121 @@ python main.py scan \
 
 1. **HTML Report**: Open `reports/run-<timestamp>_report.html` in any browser
 2. **Evidence Manifest**: Inspect `evidence/run-<timestamp>_manifest.json` for SHA-256 hashes
-3. **Trend Dashboard**:
+3. **Trend History**:
    ```bash
-   python scripts/generate_trend_data.py
-   # Open dashboard/plot.html in your browser
+   python main.py trends --snapshots-dir reports/ --limit 10
    ```
+
+**Sample CLI Output:**
+```
+Compliance Posture History (last 10 runs):
+
+Run ID                         Date                 Score    Pass   Fail   Error
+================================================================================
+run-2026-09-14T10-23-45-abc    2026-09-14 10:23:45   85.0%    17     3      0
+run-2026-09-14T14-15-02-def    2026-09-14 14:15:02   90.0%    18     2      0
+run-2026-09-14T18-47-19-ghi    2026-09-14 18:47:19   95.0%    19     1      0
+```
+
+**Sample HTML Report Structure:**
+- **Executive Summary**: Overall compliance score, total controls evaluated, PASS/FAIL/ERROR breakdown
+- **Findings by Severity**: Critical → High → Medium → Low, color-coded status badges
+- **Control Details**: Each finding includes:
+  - Framework and control ID
+  - Check title and description
+  - Status (✅ PASS / ❌ FAIL / ⚠️ ERROR)
+  - Human-readable message
+  - JSON evidence payload
+  - Copy-pasteable remediation steps
+- **Evidence Integrity**: SHA-256 manifest hash anchors report to immutable evidence snapshots
 
 ---
 
-## AI-Assisted Features
+## CLI Reference
 
-The engine includes optional LLM-assisted workflows to accelerate control onboarding:
+### `scan` — Run Compliance Evaluation
 
-### Draft a New Check Function
+Execute all configured checks and generate reports.
+
+```bash
+python main.py scan [OPTIONS]
+```
+
+**Options:**
+- `--frameworks TEXT` — Comma-separated list of frameworks to evaluate (default: `soc2,nist800-53`)
+- `--profile TEXT` — AWS CLI profile name (default: `default`)
+- `--output PATH` — Directory for HTML reports and JSON snapshots (default: `reports/`)
+- `--evidence-dir PATH` — Local directory for evidence snapshots (default: `evidence/`)
+- `--evidence-bucket TEXT` — Optional S3 bucket to upload evidence manifests (requires write permissions)
+- `--controls-dir PATH` — Directory containing YAML control definitions (default: `controls/`)
+
+**Example:**
+```bash
+python main.py scan --frameworks soc2 --profile prod-readonly --output audit-2026-q3/
+```
+
+### `trends` — View Compliance Posture History
+
+Display historical compliance scores from past scan snapshots.
+
+```bash
+python main.py trends [OPTIONS]
+```
+
+**Options:**
+- `--snapshots-dir PATH` — Directory containing `*_snapshot.json` files (default: `reports/`)
+- `--limit INTEGER` — Number of most recent runs to display (default: `10`)
+
+**Example:**
+```bash
+python main.py trends --snapshots-dir reports/ --limit 20
+```
+
+### `draft-check` — AI-Assisted Check Drafting
+
+Generate a candidate boto3 check function from a control description using Claude.
+
+```bash
+python main.py draft-check CONTROL_ID [OPTIONS]
+```
+
+**Options:**
+- `--framework TEXT` — Framework name (e.g., `nist800-53`, `soc2`) **(required)**
+- `--title TEXT` — Short control title **(required)**
+- `--description TEXT` — Full control description **(required)**
+- `--service TEXT` — AWS service (e.g., `iam`, `s3`, `ec2`) **(required)**
+
+**Example:**
 ```bash
 python main.py draft-check AC-17 \
   --framework nist800-53 \
-  --title "Remote Access Management" \
-  --description "Authorize and document all remote connections." \
+  --title "Remote Access Control" \
+  --description "The organization authorizes and monitors all remote access sessions." \
   --service ec2
 ```
 
-### Suggest Mapping to Existing Checks
+**Requires:** `ANTHROPIC_API_KEY` environment variable
+
+### `map-control` — AI-Assisted Control Mapping
+
+Suggest an existing check function that matches a control description.
+
 ```bash
-python main.py map-control \
-  --title "Multi-Factor Authentication for Privileged Users" \
-  --description "Require MFA for administrative console access."
+python main.py map-control [OPTIONS]
 ```
 
-*(Requires `ANTHROPIC_API_KEY` set in your environment.)*
+**Options:**
+- `--title TEXT` — Control title **(required)**
+- `--description TEXT` — Control description **(required)**
+
+**Example:**
+```bash
+python main.py map-control \
+  --title "Multi-Factor Authentication for Privileged Access" \
+  --description "Require MFA for all administrative console users."
+```
+
+**Requires:** `ANTHROPIC_API_KEY` environment variable
 
 ---
 
