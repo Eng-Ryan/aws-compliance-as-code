@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compliance Posture Over Time</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .subtitle { opacity: 0.7; margin-bottom: 2rem; }
+    .chart-container {
+      position: relative;
+      height: 400px;
+      margin-bottom: 3rem;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      border: 1px solid #8883;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .stat-label {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .error {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      padding: 1rem;
+      margin: 2rem 0;
+      color: #856404;
+    }
+    footer {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid #8883;
+      font-size: 0.85rem;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <h1>Compliance Posture Trend</h1>
+  <p class="subtitle">Tracking SOC 2 and NIST 800-53 compliance score over time</p>
+
+  <div class="stats" id="stats">
+    <!-- Populated by JS -->
+  </div>
+
+  <div class="chart-container">
+    <canvas id="trendChart"></canvas>
+  </div>
+
+  <div id="error" class="error" style="display:none;">
+    <strong>⚠️ No trend data found.</strong><br>
+    Run a compliance scan first: <code>python main.py scan --frameworks soc2,nist800-53 --output reports/</code><br>
+    This dashboard reads <code>*_snapshot.json</code> files from the <code>reports/</code> directory.
+  </div>
+
+  <footer>
+    Compliance-as-Code Engine &bull; Data source: reports/*_snapshot.json &bull;
+    Refresh this page after each scan to see updated trends.
+  </footer>
+
+  <script>
+    async function loadSnapshots() {
+      // In a real production setup, this would hit an API endpoint.
+      // For demo purposes, we're loading a manifest of available snapshots.
+      // In practice, you'd either:
+      // 1. Serve this dashboard via a local HTTP server with a /snapshots endpoint
+      // 2. Generate this HTML with the snapshot data baked in
+      // 3. Use a simple Python script to pre-process reports/*.json into a data.json
+
+      // For now, we'll demonstrate the chart structure with sample data
+      // and provide instructions for real integration.
+
+      // Attempt to load from a pre-generated data file (optional)
+      try {
+        const response = await fetch('../reports/trend_data.json');
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (e) {
+        // Expected — trend_data.json doesn't exist until a helper script generates it
+      }
+
+      // If no data file, show error
+      return null;
+    }
+
+    async function renderDashboard() {
+      const data = await loadSnapshots();
+
+      if (!data || data.snapshots.length === 0) {
+        document.getElementById('error').style.display = 'block';
+        return;
+      }
+
+      // Sort by timestamp
+      data.snapshots.sort((a, b) => new Date(a.generated_at) - new Date(b.generated_at));
+
+      // Extract time series
+      const labels = data.snapshots.map(s => {
+        const date = new Date(s.generated_at);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      });
+      const scores = data.snapshots.map(s => s.compliance_score_pct);
+      const passed = data.snapshots.map(s => s.passed);
+      const failed = data.snapshots.map(s => s.failed);
+
+      // Latest snapshot stats
+      const latest = data.snapshots[data.snapshots.length - 1];
+      const statsHTML = `
+        <div class="stat-card">
+          <div class="stat-value" style="color: #1a7f37;">${latest.compliance_score_pct}%</div>
+          <div class="stat-label">Current Score</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${latest.passed}</div>
+          <div class="stat-label">Passed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: #cf222e;">${latest.failed}</div>
+          <div class="stat-label">Failed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${latest.total_controls}</div>
+          <div class="stat-label">Total Controls</div>
+        </div>
+      `;
+      document.getElementById('stats').innerHTML = statsHTML;
+
+      // Render chart
+      const ctx = document.getElementById('trendChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Compliance Score (%)',
+              data: scores,
+              borderColor: '#1a7f37',
+              backgroundColor: '#1a7f3733',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                afterLabel: function(context) {
+                  const idx = context.dataIndex;
+                  return `Passed: ${passed[idx]} | Failed: ${failed[idx]}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                callback: function(value) {
+                  return value + '%';
+                }
+              },
+              title: { display: true, text: 'Compliance Score (%)' }
+            },
+            x: {
+              title: { display: true, text: 'Scan Date/Time' }
+            }
+          }
+        }
+      });
+    }
+
+    renderDashboard();
+  </script>
+</body>
+</html>

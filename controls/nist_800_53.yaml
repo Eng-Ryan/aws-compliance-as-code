@@ -1,0 +1,151 @@
+framework: nist800-53
+controls:
+  - id: AC-2
+    title: "Account management — no stale credentials"
+    description: >
+      Unused credentials older than 90 days must be disabled per AC-2's
+      requirement to manage, monitor, and deactivate accounts that are no
+      longer needed.
+    severity: high
+    service: iam
+    check_function: checks.iam_checks.check_iam_unused_credentials
+    remediation: >
+      Deactivate or delete the listed stale access keys.
+
+  - id: AC-6
+    title: "Least privilege — root account has no active access keys"
+    description: >
+      Root credentials must not be used for programmatic access, consistent
+      with the principle of least privilege (AC-6).
+    severity: critical
+    service: iam
+    check_function: checks.iam_checks.check_root_access_keys
+    remediation: >
+      Deactivate/delete any active root access keys and use scoped IAM
+      roles for automation instead.
+
+  - id: IA-2(1)
+    title: "Multi-factor authentication for privileged (root) accounts"
+    description: >
+      MFA must be enforced for the root account, per IA-2(1)'s requirement
+      for MFA on privileged accounts.
+    severity: critical
+    service: iam
+    check_function: checks.iam_checks.check_root_mfa
+    remediation: >
+      Enable a virtual or hardware MFA device on the root account.
+
+  - id: IA-2(2)
+    title: "Multi-factor authentication for non-privileged accounts"
+    description: >
+      MFA must be enforced for all IAM users with console access, per
+      IA-2(2).
+    severity: high
+    service: iam
+    check_function: checks.iam_checks.check_iam_users_mfa
+    remediation: >
+      Require each listed user to register an MFA device, or enforce via
+      IAM policy condition on aws:MultiFactorAuthPresent.
+
+  - id: IA-5
+    title: "Authenticator (password) management"
+    description: >
+      The account enforces a password policy with adequate length,
+      complexity, reuse prevention, and expiry per IA-5.
+    severity: medium
+    service: iam
+    check_function: checks.iam_checks.check_iam_password_policy
+    remediation: >
+      Configure the IAM account password policy with a 14+ character
+      minimum, full complexity requirements, 24-password reuse prevention,
+      and a maximum age.
+
+  - id: SC-28
+    title: "Protection of information at rest — S3 encryption"
+    description: >
+      Data at rest in S3 must be encrypted, per SC-28.
+    severity: high
+    service: s3
+    check_function: checks.s3_checks.check_s3_bucket_encryption
+    remediation: >
+      Enable default server-side encryption on each listed bucket.
+
+  - id: SC-28-EBS
+    title: "Protection of information at rest — EBS encryption by default"
+    description: >
+      EBS encryption-by-default should be enabled so every new volume in
+      the account/region is encrypted automatically, per SC-28.
+    severity: high
+    service: ec2
+    check_function: checks.ec2_checks.check_ebs_default_encryption
+    remediation: >
+      In EC2 > EBS encryption, enable "Always encrypt new EBS volumes"
+      for the region.
+
+  - id: AC-3
+    title: "Access enforcement — S3 public access blocked"
+    description: >
+      Access to S3 buckets must be restricted to authorized principals;
+      buckets must not be publicly accessible, per AC-3.
+    severity: critical
+    service: s3
+    check_function: checks.s3_checks.check_s3_public_access_blocked
+    remediation: >
+      Enable all four Block Public Access settings on each listed bucket.
+
+  - id: CP-9
+    title: "Information system backup — S3 versioning"
+    description: >
+      Versioning must be enabled on S3 buckets to provide point-in-time
+      recovery and protection against accidental deletion, per CP-9.
+    severity: medium
+    service: s3
+    check_function: checks.s3_checks.check_s3_versioning_enabled
+    remediation: >
+      Enable versioning on each listed bucket.
+
+  - id: SC-7
+    title: "Boundary protection — no unrestricted sensitive ports"
+    description: >
+      The information system boundary must be protected; security groups
+      must not expose administrative or database ports to the internet,
+      per SC-7.
+    severity: critical
+    service: ec2
+    check_function: checks.ec2_checks.check_security_groups_no_unrestricted_sensitive_ports
+    remediation: >
+      Restrict the listed security group rules to specific, known CIDR
+      ranges instead of 0.0.0.0/0.
+
+  - id: AU-2
+    title: "Audit events — CloudTrail logging enabled"
+    description: >
+      The system must generate audit records for security-relevant events
+      account-wide, per AU-2.
+    severity: critical
+    service: cloudtrail
+    check_function: checks.cloudtrail_checks.check_cloudtrail_enabled
+    remediation: >
+      Create and enable a multi-region CloudTrail trail.
+
+  - id: AU-9
+    title: "Protection of audit information — log file validation"
+    description: >
+      Audit information must be protected from unauthorized modification,
+      per AU-9. CloudTrail log file validation provides tamper detection.
+    severity: medium
+    service: cloudtrail
+    check_function: checks.cloudtrail_checks.check_cloudtrail_log_file_validation
+    remediation: >
+      Enable log file validation on the trail configuration.
+
+  - id: SC-28-CT
+    title: "Protection of audit information at rest — CloudTrail KMS"
+    description: >
+      CloudTrail logs must be encrypted at rest with KMS, per SC-28's
+      requirement to protect information at rest.
+    severity: medium
+    service: cloudtrail
+    check_function: checks.cloudtrail_checks.check_cloudtrail_encrypted
+    remediation: >
+      Configure KMS encryption on each CloudTrail trail.

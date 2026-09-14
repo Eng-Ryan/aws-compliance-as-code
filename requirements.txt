@@ -1,0 +1,12 @@
+boto3>=1.34.0
+botocore>=1.34.0
+PyYAML>=6.0
+Jinja2>=3.1.0
+click>=8.1.0
+
+# testing
+pytest>=8.0.0
+moto[iam,s3,cloudtrail,ec2]>=5.0.0
+
+# AI-assisted control mapping (optional — engine works without it)
+anthropic>=0.39.0

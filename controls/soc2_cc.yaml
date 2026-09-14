@@ -1,0 +1,148 @@
+framework: soc2
+controls:
+  - id: CC6.1-01
+    title: "Root account has no active access keys"
+    description: >
+      The root user must not have active programmatic access keys. Root
+      should only ever be used via the console with MFA for the rare
+      operations that require it.
+    severity: critical
+    service: iam
+    check_function: checks.iam_checks.check_root_access_keys
+    remediation: >
+      Sign in as root, go to My Security Credentials, and deactivate/delete
+      any active access keys. Use an IAM role with appropriate permissions
+      for all automation instead.
+
+  - id: CC6.1-02
+    title: "Root account has MFA enabled"
+    description: >
+      The root user must have multi-factor authentication enabled, since
+      root bypasses all IAM policy restrictions.
+    severity: critical
+    service: iam
+    check_function: checks.iam_checks.check_root_mfa
+    remediation: >
+      Sign in as root and enable a virtual or hardware MFA device under
+      My Security Credentials.
+
+  - id: CC6.1-03
+    title: "IAM console users have MFA enabled"
+    description: >
+      Every IAM user with console (password-based) access must have MFA
+      enabled.
+    severity: high
+    service: iam
+    check_function: checks.iam_checks.check_iam_users_mfa
+    remediation: >
+      For each listed user, have them register an MFA device under
+      IAM > Users > Security credentials, or enforce it via an IAM policy
+      condition requiring aws:MultiFactorAuthPresent.
+
+  - id: CC6.1-04
+    title: "Account password policy meets baseline"
+    description: >
+      The IAM account password policy enforces minimum length, complexity,
+      reuse prevention, and expiry.
+    severity: medium
+    service: iam
+    check_function: checks.iam_checks.check_iam_password_policy
+    remediation: >
+      In IAM > Account settings, set minimum length to 14+, require all
+      character classes, set password reuse prevention to 24, and set a
+      maximum password age.
+
+  - id: CC6.1-05
+    title: "S3 buckets have default encryption enabled"
+    description: >
+      Every S3 bucket has server-side encryption configured by default.
+    severity: high
+    service: s3
+    check_function: checks.s3_checks.check_s3_bucket_encryption
+    remediation: >
+      Enable default encryption (SSE-S3 or SSE-KMS) on each listed bucket
+      under Properties > Default encryption.
+
+  - id: CC6.1-06
+    title: "S3 buckets fully block public access"
+    description: >
+      Every S3 bucket has all four public-access-block settings enabled
+      at the bucket level.
+    severity: critical
+    service: s3
+    check_function: checks.s3_checks.check_s3_public_access_blocked
+    remediation: >
+      Enable all four Block Public Access settings on each listed bucket
+      under Permissions > Block public access.
+
+  - id: CC6.1-07
+    title: "S3 buckets have versioning enabled"
+    description: >
+      Every S3 bucket has versioning enabled to protect against accidental
+      or malicious object deletion and support data recovery requirements.
+    severity: medium
+    service: s3
+    check_function: checks.s3_checks.check_s3_versioning_enabled
+    remediation: >
+      Enable versioning on each listed bucket under Properties > Bucket
+      Versioning.
+
+  - id: CC6.1-08
+    title: "No stale IAM access keys (unused 90+ days)"
+    description: >
+      IAM access keys not used in over 90 days should be deactivated to
+      reduce the risk of compromised credentials being used for
+      unauthorized access.
+    severity: high
+    service: iam
+    check_function: checks.iam_checks.check_iam_unused_credentials
+    remediation: >
+      Deactivate or delete the listed access keys, and confirm with their
+      owners whether they are still needed.
+
+  - id: CC6.6-01
+    title: "Security groups do not expose sensitive ports publicly"
+    description: >
+      No security group allows unrestricted (0.0.0.0/0) inbound access to
+      administrative (SSH/RDP) or database ports.
+    severity: critical
+    service: ec2
+    check_function: checks.ec2_checks.check_security_groups_no_unrestricted_sensitive_ports
+    remediation: >
+      Restrict the listed security group rules to specific CIDR ranges
+      (e.g. a VPN or bastion IP) instead of 0.0.0.0/0.
+
+  - id: CC7.2-01
+    title: "Multi-region CloudTrail logging is enabled"
+    description: >
+      At least one multi-region CloudTrail trail exists and is actively
+      logging, so account activity is captured account-wide.
+    severity: critical
+    service: cloudtrail
+    check_function: checks.cloudtrail_checks.check_cloudtrail_enabled
+    remediation: >
+      Create a multi-region trail in CloudTrail and ensure logging is
+      turned on.
+
+  - id: CC7.2-02
+    title: "CloudTrail log file validation is enabled"
+    description: >
+      Log file validation is enabled so tampering with CloudTrail logs
+      after the fact can be detected.
+    severity: medium
+    service: cloudtrail
+    check_function: checks.cloudtrail_checks.check_cloudtrail_log_file_validation
+    remediation: >
+      Edit the trail configuration and enable "Log file validation."
+
+  - id: CC7.2-03
+    title: "CloudTrail logs are KMS-encrypted at rest"
+    description: >
+      CloudTrail log files should be encrypted with a KMS key to protect
+      audit log confidentiality.
+    severity: medium
+    service: cloudtrail
+    check_function: checks.cloudtrail_checks.check_cloudtrail_encrypted
+    remediation: >
+      Edit the trail and configure a KMS key under Log file SSE-KMS
+      encryption.

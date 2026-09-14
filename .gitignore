@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+reports/*.html
+reports/*.json
+!reports/.gitkeep
+
+evidence/*.json
+evidence/*/
+!evidence/.gitkeep
+
+.env
+.aws/
+*.log
